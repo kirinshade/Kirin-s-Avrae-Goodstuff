@@ -1,0 +1,49 @@
+embed <drac2>
+# establish the two gvars that provide logic depending on server preference
+using(
+    cvar_dt = "94fb9813-b148-4f82-b953-2939fb1b9734",
+    uvar_dt = "32a4c145-88c0-4cf1-83ff-1b032f6aea4f"
+)
+# preferences are stored in the server variable dt_data, which has the below structure:
+#   {"var_name": string, "uvar_dt": bool}
+#   when setting the svar, ensure true/false are lowercase
+#   similarly, ensure all strings have double quotes
+#   these are quirks with load_json()
+if not get_svar("dt_data"):
+    return """-f 'Svar not configured | Please have a server admin alter and run the following command: ```!svar dt_data {
+    \"var_name\": \"your_text_here\", 
+    \"uvar_dt\": true/false}``` Be advised that setting uvar_dt to true stores downtime at a per-player level, while false will store it at a per-character level' """
+
+# once the server has established their preferences, use that to determine which logic set to use
+dt_data = load_json(get_svar("dt_data"))
+var_name = dt_data.get("var_name")
+if dt_data.get("uvar_dt"):
+    logic = uvar_dt
+else:
+    logic = cvar_dt
+
+# the dt variable will have the structure {"downtime": int, "last_call": int}
+#   downtime represents the character's total downtime in seconds
+#   last_call represents the last time this alias was called
+#   this section initializes the dt variable, and anything we'll add/subtract
+current_time = int(time())
+dt = logic.get_dt(var_name, current_time)
+passive_dt = current_time - dt.get("last_call")
+manual_addition = (float("&1&") * 3600 * 24) if &ARGS& else 0
+
+# now we can handle the addition, and update dt with the result
+#   also update the var_name copy of dt on whichever logic we're using
+dt.update({"downtime": (int(
+    dt.get("downtime")
+    + passive_dt
+    + manual_addition)),
+    "last_call": current_time})
+logic.update_dt(var_name, dt)
+
+# now we format the output
+output = logic.format_output(var_name, passive_dt, manual_addition)
+return output
+</drac2>
+-thumb <image>
+-color <color>
+-footer {{ctx.prefix + ctx.alias}}
