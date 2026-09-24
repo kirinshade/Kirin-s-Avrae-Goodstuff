@@ -1,0 +1,47 @@
+# cvar_dt
+# This module exists for servers that wish to store downtime at a cvar level
+#   rather than a uvar level (tracked per character)
+
+# takes in the name of the variable it's looking for (set by server admins)
+#   either returns what the variable's holding
+#   or initializes that variable and returns a "blank"
+def get_dt(var_name, current_time=int(time())):
+    if character().get_cvar(var_name):
+        return load_json(character().get_cvar(var_name))
+    else:
+        dt = {"downtime": 0, "last_call": current_time}
+        character().set_cvar(var_name, dump_json(dt))
+        return dt
+
+# updates the target cvar with some new information
+def update_dt(var_name, dt):
+    character().set_cvar(var_name, dump_json(dt))
+
+# formats some downtime quantity to be more readable
+def make_readable(dt_in_seconds):
+    seconds = dt_in_seconds
+    minutes = seconds/60
+    hours = minutes/60
+    days = hours/24
+
+    if days > 1:
+        elapsed_time = round(days, 2) + " days"
+    elif hours > 1:
+        elapsed_time = round(hours, 2) + " hours"
+    elif minutes > 1:
+        elapsed_time = round(minutes, 2) + " minutes"
+    else:
+        elapsed_time = seconds + " seconds"
+
+    return elapsed_time
+
+# formats the resulting embed, populating fields such as title, color, etc.
+def format_output(var_name, passive_dt, manual_addition):
+    output = f"""-title "{character().name} checks their downtime" """
+    if manual_addition != 0:
+        output += f"""-f "Manual Adjustment|{round(manual_addition/(24*3600), 2)} days" """
+    output += f"""-f "Time Added|{make_readable(passive_dt)}" """
+    total_downtime = make_readable(get_dt(var_name).get("downtime"))
+    output += f"""-f "Current Downtime|{total_downtime} " """
+
+    return output
